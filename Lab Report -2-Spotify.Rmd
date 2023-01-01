@@ -1,0 +1,300 @@
+---
+title: 'Lab Report 2: Spotify'
+author: "Gunchica Bhalla"
+geometry: margin=.75in
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+    theme: cosmo
+header-includes:
+- \usepackage{graphicx}
+- \usepackage{color}
+graphics: yes
+fontsize: 11pt
+---
+
+
+### 1. Distribution Characteristics
+
+
+```{r}
+
+knitr::opts_chunk$set(message=FALSE, warning=FALSE)
+## Read data here
+library('tidyverse') 
+#library('RSQLite')
+library('qqtest')
+library('lubridate')
+library('gganimate')
+library('plotly')
+songs <-read.csv('Data/Data-1/spotify_songs.csv')
+# ...
+
+## call tidyverse and any other library you'll need ( you can call later if you want ) 
+
+str(songs)
+## Set theme to something else (optional)
+theme_set(theme_minimal())
+```
+
+```{r}
+genre <- unique(songs$playlist_genre)
+ggplot(data=songs,aes(x=danceability,fill=playlist_genre))+ 
+  geom_histogram(colour="white",bins=50) +
+  geom_density(alpha=0.5) + ggtitle("Danceability of Songs") + 
+  geom_vline(aes(xintercept=median(danceability,na.rm = T)),colour="black",
+            size=1.5) +
+  geom_vline(aes(xintercept=mean(danceability,na.rm = T)),colour="purple",size=1.5)+
+  theme_light()
+```
+
+
+>The graph represents the danceability and the count of songs with that danceability.The graph looks symetric on glance but is negative (left) skewed as the mean (0.6548495) is smaller than the median(0.672).The mean is represented by the purple line and the median by the black line.The tails are uniformaly thick through out the ranges.
+
+
+```{r}
+library("moments")
+fourmoments <- function(rv){
+  c('Mean' = mean(rv), 
+    'Variance' = var(rv),
+    'Skewness' = skewness(rv),
+    'Kurtosis' = kurtosis(rv))
+}
+
+fourmoments(songs$danceability)
+```
+
+> Assuming that the the four moments were to be calculated for the choosen continous varianble (danceability). We see that the skewness is negative thus we know that this is a left skwed graph. As for the Kurtosis the value is very close to 3 (normal distribution) but as an unlikey even it makes this data lepokutic(thick tailed)
+
+```{r}
+library("moments")
+song <- data.frame('Danceability'= songs$danceability,
+                   'Popularity'=songs$track_popularity,
+                   'Loudness'= songs$loudness,
+                   'Energy'=songs$energy,
+                   'Speechiness'=songs$speechiness,
+                   'Acoustics'=songs$acousticness,
+                   'Instrumentalness'= songs$instrumentalness,
+                   'Liveliness'=songs$liveness,
+                   'Duration'=songs$duration_ms)
+round(apply(song,2,fourmoments),4)
+
+```
+> Here we have the four moments for most of the numeric attributes of the sond database. Looking at the attributes individually we can tell that:
+Danceability is left skewed as the Skewness(-0.5045) is negative.
+Popularity is aslo left skewed as the Skewness(-0.2333) is negative.
+Loudness is aslo left skewed as the Skewness(-1.3640) is negative.
+Energy is aslo left skewed as the Skewness(-0.6363) is negative.
+Speechiness is right skewed as the Skewness(1.9669) is positive.
+Acoustics is right skewed as the Skewness(1.5947) is positive.
+Instrumentalness is right skewed as the Skewness(2.7593) is positive.
+Liveliness is right skewed as the Skewness(2.0766) is positive.
+Duration is right skewed as the Skewness(1.149800e+00) is positive.
+In conclusion danceability, track_popularity, loudness and energy are left skewed and speechinees, acoustics,instrumentalness liveliness and duration are right skewed.
+
+>Moving onto the Kurtosis we can see that Instrumentality has the highest value of Kurtosis (9.2729) signifying that the this is data will have the thickest tail in compariosn to the others making the Instrumentality lepokurtic in compariosn to the others. On the other hand Popularity has the lowest Kurtosis value(2.0672 ) thus this will have the thinnest tail making it platykurtic.
+
+\pagebreak
+
+### 2. Quantile Plot
+
+```{r}
+ggplot(songs, aes(y=liveness)) + 
+  geom_point(aes(y=sort(liveness), x=seq(0,1, length.out = length(liveness))), colour='darkolivegreen3',
+             alpha = .3, size =3 ) +
+  geom_histogram(aes(x = -..density..), alpha = .7, colour = 'white', bins=15) +
+  geom_boxplot(aes(x = 1.25), width=.25) + 
+  labs(x = 'Probability Points', y= 'Sample Quantiles', title='Song Liveness')   
+
+```
+
+> The liveliness attribute of the songs table is unimodal with 0.111 as the mode for the data.The median of the plot is 0.1270 it is the bold black line in the middle of the box The horizontal black line(base of the box) closer to the x-axis is the first quartile whose value is 0.0927 and the thrid quartile(top of the box) is the horizontal black line above the bold line its value os 0.2480. The minimum value is 0 and maxium value is 0.996.
+
+\pagebreak
+
+### 3. Fitting Distributions
+
+```{r}
+tform <- function(x, alpha){
+  if(alpha == 0) {log(x)} else {(x^alpha-1)/alpha}
+}
+
+
+
+library(gridExtra)
+g1 <- ggplot(songs, aes(x=tform(danceability,1))) + 
+  geom_histogram(colour='white',bins = 75)
+g2 <- ggplot(songs, aes(x=tform(danceability,0.5))) + 
+  geom_histogram(colour='white',bins = 75)
+g3 <- ggplot(songs, aes(x=tform(danceability,0))) + 
+  geom_histogram(colour='white',bins = 75)
+g7 <- ggplot(songs, aes(x=tform(danceability,-0.25))) + 
+  geom_histogram(colour='white',bins = 75)
+g8 <- ggplot(songs, aes(x=tform(danceability,-0.5))) + 
+  geom_histogram(colour='white',bins = 75)
+
+g4 <- ggplot(songs, aes(x=tform(liveness,1))) + 
+  geom_histogram(colour='white',bins = 75)
+g5 <- ggplot(songs, aes(x=tform(liveness,0.5))) + 
+  geom_histogram(colour='white',bins = 75)
+g6 <- ggplot(songs, aes(x=tform(liveness,0))) + 
+  geom_histogram(colour='white',bins = 75)
+g9 <- ggplot(songs, aes(x=tform(danceability,0.25))) + 
+  geom_histogram(colour='white',bins = 75)
+
+
+grid.arrange(g1,g2,g3,g7,g8,g4,g5,g6,g9)
+qqtest(tform(songs$danceability,0.5))
+qqtest(tform(songs$liveness,0.5))
+
+```
+
+
+>Songs liveness is right skewed but at alpha 0.5 it resembles a normal distribution.
+
+```{r}
+qqtest(tform(songs$liveness,0.5),dist = 'normal')
+```
+
+
+> It is not a normal distribution 
+
+```{r}
+qqtest(tform(songs$liveness,0.5),dist = 'log-normal')
+```
+
+
+> The distribution is not a lognormal distribution
+
+```{r}
+qqtest(tform(songs$liveness,0.5),dist = 'exponential')
+```
+
+>The distribtion is not exponential 
+
+```{r}
+qqtest(tform(songs$liveness,0.5),dist = 'chi-squared')
+```
+
+>The distribution is not chi-squared
+
+
+```{r}
+
+sample  <- data.frame(X = tform(songs$liveness,0.5))
+
+ggplot(sample, aes(y=X)) + 
+  geom_histogram(aes(x = -..density..), alpha = .9, colour = 'white', bins=20) +
+  geom_point(aes(y=sort(X), x=ppoints(X)), colour='light green', alpha = .05, size =1 ) +
+  geom_boxplot(aes(x = 1.25), width=.25)  +
+  labs(x='Probability Points', y='Quantile')
+```
+
+
+```{r}
+library('plotly')
+rate <- 1/mean(songs$liveness)
+
+probs    <- ppoints(songs$liveness)
+q.exp    <- qexp(probs, rate)
+q.wbl    <- qweibull(probs, .9, 1/rate)
+q.gmm    <- qgamma(probs, 1.1, rate)
+q.sample <- sort(songs$liveness)
+
+g <- ggplot() + 
+  geom_point(aes(y = q.sample, x=probs), colour = 'pink', alpha = .2) +
+  geom_line(aes(y = q.exp,   x=probs)) +
+  geom_line(aes(y = q.wbl,   x=probs), colour = 'purple') +
+  geom_line(aes(y = q.gmm,   x=probs), colour = 'blue') +
+  labs(x = 'Probability Points', y= 'Sample Quantiles') 
+
+
+ggplotly(g)
+
+
+
+```
+
+
+\pagebreak
+
+### 4. Summarizing Data
+
+```{r}
+
+
+d1 <- songs %>% 
+  mutate(Date=as.Date(track_album_release_date,format='%d-%m-%y')) %>% 
+  select(c('liveness','playlist_genre','track_album_release_date')) %>% 
+  mutate(Year = as.Date(track_album_release_date,format= '%Y')) %>% 
+  group_by(playlist_genre,Year) %>%
+  summarize_at(vars(liveness),mean, na.rm=T)
+  h <- head(d1)
+  t <-tail(d1)
+  h
+  t
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\pagebreak
+
+### 5. Plot the Time Series
+```{r}
+library('gganimate')
+ggplot(d1, aes(x=Year, y=liveness, colour =playlist_genre)) + 
+  geom_line() +
+  #transition_reveal(Year)+
+  #geom_text(aes(x=Year, label=playlist_genre),hjust=0)+
+  theme(legend.position = 'right')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+\pagebreak
+
+### 6. CLT
+```{r}
+groups <- sample(1:300, size = nrow(songs), replace = T)
+head(groups)
+
+songs$group <- groups
+songs %>% select(energy:valence, group) %>% head
+
+Xbars <- songs %>% group_by(group)%>% summarize(Xbar=mean(speechiness))
+
+mu    <- mean(songs$speechiness)
+sigma <- sd(songs$speechiness)
+
+ggplot(Xbars, aes(x=(Xbar-mu)/(sigma/sqrt(300)))) + 
+  geom_histogram(colour='white',fill='turquoise4')
+
+qqtest(Xbars$Xbar) 
+```
+
+>The magic does work.It is transformed to a normal distribution
+
+
